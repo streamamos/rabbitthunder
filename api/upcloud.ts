@@ -69,17 +69,32 @@ export default async (req: any, res: any) => {
 
   // Set headers,else wont work.
   await page.setExtraHTTPHeaders({ 'Referer': 'https://flixhq.to/' });
+
+  interface ISubtile {
+      file: string,
+      label: string,
+      kind: string,
+      default?: boolean,
+  }
   
   const logger:string[] = [];
   const finalResponse:{source:string,subtitle:string[]} = {source:'',subtitle:[]}
-  
+  let urlSub;
   page.on('request', async (interceptedRequest) => {
     await (async () => {
       logger.push(interceptedRequest.url());
       if (interceptedRequest.url().includes('.m3u8')) finalResponse.source = interceptedRequest.url();
-      if (interceptedRequest.url().includes('.vtt')) finalResponse.subtitle.push(interceptedRequest.url());
+      // if (interceptedRequest.url().includes('.vtt')) finalResponse.subtitle.push(interceptedRequest.url());
       interceptedRequest.continue();
     })();
+  });
+  page.on('response', async (interceptedResponse) => {
+    if (interceptedResponse.url().includes('getSources')) {
+      urlSub = interceptedResponse.url();
+      const text = await interceptedResponse.json();
+      const sources = JSON.parse(JSON.stringify(text));
+      finalResponse.subtitle.push(sources.tracks);
+    }
   });
   
   try {
