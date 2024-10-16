@@ -1,4 +1,6 @@
-// written by cool-dev-guy
+// same file but differnt name.....
+// made by cool-dev-guy
+
 const puppeteer = require('puppeteer-extra');
 const chrome = require('@sparticuz/chromium');
 
@@ -68,39 +70,24 @@ export default async (req: any, res: any) => {
   await page.setRequestInterception(true);
 
   // Set headers,else wont work.
-  await page.setExtraHTTPHeaders({ 'Referer': 'https://flixhq.to/' });
-
-  interface ISubtile {
-      file: string,
-      label: string,
-      kind: string,
-      default?: boolean,
-  }
+  await page.setExtraHTTPHeaders({ 'Referer': 'https://myflixerz.to/' });
   
   const logger:string[] = [];
   const finalResponse:{source:string,subtitle:string[]} = {source:'',subtitle:[]}
-  let urlSub;
+  
   page.on('request', async (interceptedRequest) => {
     await (async () => {
       logger.push(interceptedRequest.url());
       if (interceptedRequest.url().includes('.m3u8')) finalResponse.source = interceptedRequest.url();
-      // if (interceptedRequest.url().includes('.vtt')) finalResponse.subtitle.push(interceptedRequest.url());
+      if (interceptedRequest.url().includes('.vtt')) finalResponse.subtitle.push(interceptedRequest.url());
       interceptedRequest.continue();
     })();
-  });
-  page.on('response', async (interceptedResponse) => {
-    if (interceptedResponse.url().includes('getSources')) {
-      urlSub = interceptedResponse.url();
-      const text = await interceptedResponse.json();
-      const sources = JSON.parse(JSON.stringify(text));
-      finalResponse.subtitle.push(sources.tracks);
-    }
   });
   
   try {
     const [req] = await Promise.all([
       page.waitForRequest(req => req.url().includes('.m3u8'), { timeout: 20000 }),
-      page.goto(`https://rabbitstream.net/v2/embed-4/${id}?z=&_debug=true`, { waitUntil: 'domcontentloaded' }),
+      page.goto(`https://megacloud.tube/embed-1/e-1/${id}?z=&_debug=1`, { waitUntil: 'domcontentloaded' }),
     ]);
   } catch (error) {
     return res.status(500).end(`Server Error,check the params.`)
