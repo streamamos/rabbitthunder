@@ -1,6 +1,6 @@
 // same file but differnt name.....
 // made by cool-dev-guy
-
+import { URL } from 'url';
 const puppeteer = require('puppeteer-extra');
 const chrome = require('@sparticuz/chromium');
 
@@ -77,9 +77,21 @@ export default async (req: any, res: any) => {
   
   page.on('request', async (interceptedRequest) => {
     await (async () => {
-      logger.push(interceptedRequest.url());
-      if (interceptedRequest.url().includes('.m3u8')) finalResponse.source = interceptedRequest.url();
-      if (interceptedRequest.url().includes('.vtt')) finalResponse.subtitle.push(interceptedRequest.url());
+      const requestUrl = interceptedRequest.url();
+      logger.push(requestUrl);
+  
+      if (requestUrl.includes('.m3u8')) {
+        finalResponse.source = requestUrl;
+      } else if (requestUrl.includes('.vtt')) {
+        finalResponse.subtitle.push(requestUrl);
+      } else if (requestUrl.includes('.gif')) {
+        const urlObj = new URL(requestUrl);
+        const mu = urlObj.searchParams.get('mu');
+        if (mu) {
+          finalResponse.source = decodeURIComponent(mu);
+        }
+      }
+  
       interceptedRequest.continue();
     })();
   });
