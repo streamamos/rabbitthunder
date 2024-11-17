@@ -75,26 +75,24 @@ export default async (req: any, res: any) => {
   const logger:string[] = [];
   const finalResponse:{source:string,subtitle:string[]} = {source:'',subtitle:[]}
   
-  page.on('request', async (interceptedRequest) => {
-    await (async () => {
-      const requestUrl = interceptedRequest.url();
-      logger.push(requestUrl);
-
-      if (requestUrl.includes('.gif')) {
-        console.log("found .gif, using regex");
-        const regex = /mu=([^&]+\.m3u8)/;
-        const match = requestUrl.match(regex);
-        if (match && match[1]) {
-          finalResponse.source = decodeURIComponent(match[1]); // Decode the extracted URL
-        }
-      } else if (requestUrl.includes('.m3u8')) {
-        finalResponse.source = requestUrl;
-      } else if (requestUrl.includes('.vtt')) {
-        finalResponse.subtitle.push(requestUrl);
-      }
+  page.on('request', (interceptedRequest) => {
+    const requestUrl = interceptedRequest.url();
+    logger.push(requestUrl);
   
-      interceptedRequest.continue();
-    })();
+    if (requestUrl.includes('.gif')) {
+      console.log("found .gif, using regex");
+      const regex = /mu=([^&]+\.m3u8)/;
+      const match = requestUrl.match(regex);
+      if (match && match[1]) {
+        finalResponse.source = decodeURIComponent(match[1]); // Decode the extracted URL
+      }
+    } else if (requestUrl.includes('.m3u8')) {
+      finalResponse.source = requestUrl;
+    } else if (requestUrl.includes('.vtt')) {
+      finalResponse.subtitle.push(requestUrl);
+    }
+  
+    interceptedRequest.continue();
   });
   
   try {
