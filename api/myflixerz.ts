@@ -1,6 +1,6 @@
 // same file but differnt name.....
 // made by cool-dev-guy
-import { URL } from 'url';
+
 const puppeteer = require('puppeteer-extra');
 const chrome = require('@sparticuz/chromium');
 
@@ -79,17 +79,18 @@ export default async (req: any, res: any) => {
     await (async () => {
       const requestUrl = interceptedRequest.url();
       logger.push(requestUrl);
-  
-      if (requestUrl.includes('.m3u8')) {
+
+      if (requestUrl.includes('.gif')) {
+        console.log("found .gif, using regex");
+        const regex = /mu=([^&]+\.m3u8)/;
+        const match = requestUrl.match(regex);
+        if (match && match[1]) {
+          finalResponse.source = decodeURIComponent(match[1]); // Decode the extracted URL
+        }
+      } else if (requestUrl.includes('.m3u8')) {
         finalResponse.source = requestUrl;
       } else if (requestUrl.includes('.vtt')) {
         finalResponse.subtitle.push(requestUrl);
-      } else if (requestUrl.includes('.gif')) {
-        const urlObj = new URL(requestUrl);
-        const mu = urlObj.searchParams.get('mu');
-        if (mu) {
-          finalResponse.source = decodeURIComponent(mu);
-        }
       }
   
       interceptedRequest.continue();
