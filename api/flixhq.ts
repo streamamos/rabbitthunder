@@ -28,29 +28,29 @@ require('puppeteer-extra-plugin-stealth/evasions/window.outerdimensions')
 const StealthPlugin = require('puppeteer-extra-plugin-stealth')
 puppeteer.use(StealthPlugin())
 
-export default async (req: any, res: any) => {
-  let {body,method} = req
+export default async (req, res) => {
+  const { body, method } = req;
 
-  // Some header shits
+  // Handle preflight requests
   if (method !== 'POST') {
-    res.setHeader('Access-Control-Allow-Credentials', true)
-    res.setHeader('Access-Control-Allow-Origin', '*')
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT')
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
     res.setHeader(
       'Access-Control-Allow-Headers',
       'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-    )
-    return res.status(200).end()
+    );
+    return res.status(200).end();
   }
 
-  // Some checks...
-  if (!body) return res.status(400).end(`No body provided`)
-  if (typeof body === 'object' && !body.id) return res.status(400).end(`No url provided`)
-  
-  const id = body.id;
-  const isProd = process.env.NODE_ENV === 'production'
+  // Validate the request body
+  if (!body) return res.status(400).end(`No body provided`);
+  if (typeof body === 'object' && !body.id) return res.status(400).end(`No ID provided`);
 
-  // create browser based on ENV
+  const id = body.id;
+  const isProd = process.env.NODE_ENV === 'production';
+
+  // Launch Puppeteer browser
   let browser;
   if (isProd) {
     browser = await puppeteer.launch({
@@ -58,55 +58,65 @@ export default async (req: any, res: any) => {
       defaultViewport: chrome.defaultViewport,
       executablePath: await chrome.executablePath(),
       headless: true,
-      ignoreHTTPSErrors: true
-    })
+      ignoreHTTPSErrors: true,
+    });
   } else {
     browser = await puppeteer.launch({
       headless: true,
       executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    })
+    });
   }
+
   const page = await browser.newPage();
   await page.setRequestInterception(true);
 
-  // Set headers,else wont work.
-  await page.setExtraHTTPHeaders({ 'Referer': 'https://flixhq.to/' });
-  
-  const logger:string[] = [];
-  const finalResponse:{source:string,subtitle:string[]} = {source:'',subtitle:[]}
-  
-  page.on('request', async (interceptedRequest) => {
-    await (async () => {
-      console.log(interceptedRequest.url());
-      logger.push(interceptedRequest.url());
-      if (interceptedRequest.url().includes('.m3u8')) finalResponse.source = interceptedRequest.url();
-      if (interceptedRequest.url().includes('.vtt')) finalResponse.subtitle.push(interceptedRequest.url());
-      interceptedRequest.continue();
-    })();
-  });
-  
-  try {
-    const [req] = await Promise.all([
-      page.waitForRequest(req => req.url().includes('.m3u8'), { timeout: 20000 }),
-      page.goto(`https://pepepeyo.xyz/v2/embed-4/${id}?z=&_debug=1`, { waitUntil: 'domcontentloaded' }),
-    ]);
-  } catch (error) {
-    return res.status(500).end(`Server Error,check the params.`)
-  }
-  await browser.close();
+  // Set extra HTTP headers
+  await page.setExtraHTTPHeaders({ Referer: 'https://flixhq.to/' });
 
-  // Response headers.
-  res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate')
-  res.setHeader('Content-Type', 'application/json')
-  // CORS
-  // res.setHeader('Access-Control-Allow-Headers', '*')
-  res.setHeader('Access-Control-Allow-Credentials', true)
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT')
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  )
-  console.log(finalResponse);
-  res.json(finalResponse);
+  // Prepare response data
+  const finalResponse = { source: '', subtitle: [] };
+
+  // Intercept network requests
+  page.on('request', async (interceptedRequest) => {
+    const url = interceptedRequest.url();
+
+    if (url.includes('.m3u8') && !finalResponse.source) {
+      finalResponse.source = url;
+      console.log('M3U8 link found:', finalResponse.source);
+    }
+
+    if (url.includes('.vtt') && !finalResponse.subtitle.includes(url)) {
+      finalResponse.subtitle.push(url);
+      console.log('VTT link added:', url);
+    }
+
+    if (finalResponse.source && finalResponse.subtitle.length > 0) {
+      console.log('M3U8 and at least one VTT found. Closing browser.');
+      await browser.close();
+
+      // Set response headers and send finalResponse
+      res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate');
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Access-Control-Allow-Credentials', true);
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+      res.setHeader(
+        'Access-Control-Allow-Headers',
+        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+      );
+
+      return res.json(finalResponse);
+    }
+
+    interceptedRequest.continue();
+  });
+
+  try {
+    // Start navigation and listen for requests
+    await page.goto(`https://pepepeyo.xyz/v2/embed-4/${id}?z=&_debug=1`, { waitUntil: 'domcontentloaded' });
+  } catch (error) {
+    console.error('Error during navigation:', error);
+    await browser.close();
+    return res.status(500).end(`Server Error, check the params.`);
+  }
 };
