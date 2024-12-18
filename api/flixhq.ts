@@ -77,6 +77,7 @@ export default async (req: any, res: any) => {
   
   page.on('request', async (interceptedRequest) => {
     await (async () => {
+      console.log(interceptedRequest.url());
       logger.push(interceptedRequest.url());
       if (interceptedRequest.url().includes('.m3u8')) finalResponse.source = interceptedRequest.url();
       if (interceptedRequest.url().includes('.vtt')) finalResponse.subtitle.push(interceptedRequest.url());
