@@ -113,7 +113,7 @@ export default async (req, res) => {
 
   try {
     // Start navigation and listen for requests
-    await page.goto(`https://pepepeyo.xyz/v2/embed-4/${id}?z=&_debug=1`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`https://kerolaunochan.online/v2/embed-4/${id}?z=&_debug=1`, { waitUntil: 'domcontentloaded' });
   } catch (error) {
     console.error('Error during navigation:', error);
     await browser.close();
